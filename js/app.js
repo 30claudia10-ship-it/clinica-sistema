@@ -2,8 +2,6 @@
    app.js — aplicação da clínica (equipe interna)
    =========================================================================== */
 
-seedIfEmpty();
-
 const NAV = [
   { group: 'Visão Geral', items: [
     { id: 'dashboard', label: 'Dashboard' },
@@ -56,6 +54,7 @@ function renderShell() {
       <aside class="sidebar">
         <h1>Clínica · Sistema<small>Tratamento · Vendas · Estoque</small></h1>
         <div id="nav"></div>
+        <button class="nav-btn" id="logout-btn" style="margin-top:auto;border-top:1px solid rgba(255,255,255,.12);">Sair</button>
       </aside>
       <main class="main">
         <div id="content"></div>
@@ -63,6 +62,10 @@ function renderShell() {
     </div>
   `;
   renderNav();
+  document.getElementById('logout-btn').addEventListener('click', async () => {
+    if (!confirmAction('Sair da conta?')) return;
+    await sb.auth.signOut();
+  });
 }
 
 function renderNav() {
@@ -249,10 +252,10 @@ function renderPacientes() {
       </div>
     </div>
   `);
-  document.getElementById('form-patient').addEventListener('submit', e => {
+  document.getElementById('form-patient').addEventListener('submit', async e => {
     e.preventDefault();
     const fd = new FormData(e.target);
-    Store.add('patients', {
+    await Store.add('patients', {
       name: fd.get('name').trim(),
       cpf: fd.get('cpf').trim(),
       birthDate: fd.get('birthDate'),
@@ -262,10 +265,10 @@ function renderPacientes() {
     flash('success', 'Paciente cadastrado com sucesso.');
     render();
   });
-  document.querySelectorAll('[data-del-patient]').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('[data-del-patient]').forEach(b => b.addEventListener('click', async () => {
     const p = Store.get('patients', b.dataset.delPatient);
     if (!confirmAction(`Excluir o paciente "${p.name}"? Isso também excluirá todas as vendas, mapeamentos e baixas dele, estornando o estoque correspondente. Esta ação não pode ser desfeita.`)) return;
-    deletePatient(p.id);
+    await deletePatient(p.id);
     flash('success', 'Paciente e todos os lançamentos vinculados foram excluídos.');
     render();
   }));
@@ -306,22 +309,22 @@ function renderServicos() {
       </div>
     </div>
   `);
-  document.getElementById('form-service').addEventListener('submit', e => {
+  document.getElementById('form-service').addEventListener('submit', async e => {
     e.preventDefault();
     const fd = new FormData(e.target);
-    Store.add('services', { name: fd.get('name').trim(), category: fd.get('category').trim(), active: true });
+    await Store.add('services', { name: fd.get('name').trim(), category: fd.get('category').trim(), active: true });
     flash('success', 'Serviço cadastrado.');
     render();
   });
-  document.querySelectorAll('[data-toggle]').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('[data-toggle]').forEach(b => b.addEventListener('click', async () => {
     const s = Store.get('services', b.dataset.toggle);
-    Store.update('services', s.id, { active: !(s.active !== false) });
+    await Store.update('services', s.id, { active: !(s.active !== false) });
     render();
   }));
-  document.querySelectorAll('[data-del-service]').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('[data-del-service]').forEach(b => b.addEventListener('click', async () => {
     const s = Store.get('services', b.dataset.delService);
     if (!confirmAction(`Excluir o serviço "${s.name}"? Vendas já lançadas que usam este serviço não serão apagadas.`)) return;
-    Store.remove('services', s.id);
+    await Store.remove('services', s.id);
     flash('success', 'Serviço excluído.');
     render();
   }));
@@ -391,11 +394,11 @@ function renderProdutos() {
       </div>
     </div>
   `);
-  document.getElementById('form-product').addEventListener('submit', e => {
+  document.getElementById('form-product').addEventListener('submit', async e => {
     e.preventDefault();
     const fd = new FormData(e.target);
     const hasConversion = fd.get('hasConversion') === 'on';
-    Store.add('products', {
+    await Store.add('products', {
       name: fd.get('name').trim(),
       category: fd.get('category'),
       controlType: fd.get('controlType'),
@@ -460,11 +463,11 @@ function bindProductRowEvents() {
     editingProductId = null;
     render();
   }));
-  document.querySelectorAll('[data-edit-form]').forEach(f => f.addEventListener('submit', e => {
+  document.querySelectorAll('[data-edit-form]').forEach(f => f.addEventListener('submit', async e => {
     e.preventDefault();
     const fd = new FormData(e.target);
     const hasConversion = fd.get('hasConversion') === 'on';
-    Store.update('products', f.dataset.editForm, {
+    await Store.update('products', f.dataset.editForm, {
       name: fd.get('name').trim(),
       minStock: Number(fd.get('minStock')),
       unit: fd.get('unit'),
@@ -476,10 +479,10 @@ function bindProductRowEvents() {
     flash('success', 'Produto atualizado.');
     render();
   }));
-  document.querySelectorAll('[data-del-product]').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('[data-del-product]').forEach(b => b.addEventListener('click', async () => {
     const p = Store.get('products', b.dataset.delProduct);
     if (!confirmAction(`Excluir o produto "${p.name}"? Lançamentos antigos que o referenciam manterão o nome apenas como histórico.`)) return;
-    Store.remove('products', p.id);
+    await Store.remove('products', p.id);
     flash('success', 'Produto excluído.');
     render();
   }));
@@ -507,16 +510,16 @@ function renderUnidades() {
       </div>
     </div>
   `);
-  document.getElementById('form-unit').addEventListener('submit', e => {
+  document.getElementById('form-unit').addEventListener('submit', async e => {
     e.preventDefault();
     const fd = new FormData(e.target);
-    Store.add('units', { name: fd.get('name').trim() });
+    await Store.add('units', { name: fd.get('name').trim() });
     flash('success', 'Unidade adicionada.');
     render();
   });
-  document.querySelectorAll('[data-del-unit]').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('[data-del-unit]').forEach(b => b.addEventListener('click', async () => {
     if (!confirmAction('Excluir esta unidade de medida?')) return;
-    Store.remove('units', b.dataset.delUnit);
+    await Store.remove('units', b.dataset.delUnit);
     flash('success', 'Unidade excluída.');
     render();
   }));
@@ -557,19 +560,19 @@ function renderFornecedores() {
       </div>
     </div>
   `);
-  document.getElementById('form-supplier').addEventListener('submit', e => {
+  document.getElementById('form-supplier').addEventListener('submit', async e => {
     e.preventDefault();
     const fd = new FormData(e.target);
-    Store.add('suppliers', {
+    await Store.add('suppliers', {
       name: fd.get('name').trim(), cnpj: fd.get('cnpj').trim(), phone: fd.get('phone').trim(),
       email: fd.get('email').trim(), paymentTerms: fd.get('paymentTerms').trim()
     });
     flash('success', 'Fornecedor cadastrado.');
     render();
   });
-  document.querySelectorAll('[data-del-supplier]').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('[data-del-supplier]').forEach(b => b.addEventListener('click', async () => {
     if (!confirmAction('Excluir este fornecedor? Compras já registradas manterão o nome apenas como histórico.')) return;
-    Store.remove('suppliers', b.dataset.delSupplier);
+    await Store.remove('suppliers', b.dataset.delSupplier);
     flash('success', 'Fornecedor excluído.');
     render();
   }));
@@ -595,16 +598,16 @@ function renderPagamentos() {
       </div>
     </div>
   `);
-  document.getElementById('form-pm').addEventListener('submit', e => {
+  document.getElementById('form-pm').addEventListener('submit', async e => {
     e.preventDefault();
     const fd = new FormData(e.target);
-    Store.add('paymentMethods', { name: fd.get('name').trim() });
+    await Store.add('paymentMethods', { name: fd.get('name').trim() });
     flash('success', 'Forma de pagamento adicionada.');
     render();
   });
-  document.querySelectorAll('[data-del-pm]').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('[data-del-pm]').forEach(b => b.addEventListener('click', async () => {
     if (!confirmAction('Excluir esta forma de pagamento?')) return;
-    Store.remove('paymentMethods', b.dataset.delPm);
+    await Store.remove('paymentMethods', b.dataset.delPm);
     flash('success', 'Forma de pagamento excluída.');
     render();
   }));
@@ -683,18 +686,18 @@ function renderConfiguracoes() {
     document.getElementById('logo-preview').innerHTML = `<span class="hint">Nenhuma logo definida ainda</span>`;
   });
 
-  document.getElementById('form-settings').addEventListener('submit', e => {
+  document.getElementById('form-settings').addEventListener('submit', async e => {
     e.preventDefault();
     const fd = new FormData(e.target);
-    saveSettings({ clinicName: fd.get('clinicName').trim(), logoDataUrl: pendingLogoDataUrl });
+    await saveSettings({ clinicName: fd.get('clinicName').trim(), logoDataUrl: pendingLogoDataUrl });
     flash('success', 'Configurações salvas.');
     render();
   });
 
-  document.getElementById('form-company').addEventListener('submit', e => {
+  document.getElementById('form-company').addEventListener('submit', async e => {
     e.preventDefault();
     const fd = new FormData(e.target);
-    saveSettings({
+    await saveSettings({
       companyName: fd.get('companyName').trim(),
       companyCnpj: fd.get('companyCnpj').trim(),
       companyIe: fd.get('companyIe').trim(),
@@ -817,26 +820,26 @@ function renderVenda() {
     renderSaleItems(products);
   });
 
-  document.getElementById('form-sale').addEventListener('submit', e => {
+  document.getElementById('form-sale').addEventListener('submit', async e => {
     e.preventDefault();
     const fd = new FormData(e.target);
     let patientId = fd.get('patientId');
     if (!patientId) { flash('error', 'Selecione um paciente.'); render(); return; }
-    if (patientId === '__new__') {
-      const name = (fd.get('newPatientName') || '').trim();
-      if (!name) { flash('error', 'Informe o nome do novo paciente.'); render(); return; }
-      patientId = Store.add('patients', { name }).id;
-    }
-    let serviceId = fd.get('serviceId');
-    if (serviceId === '__new__') {
-      const name = (fd.get('newServiceName') || '').trim();
-      if (!name) { flash('error', 'Informe o nome do novo serviço.'); render(); return; }
-      serviceId = Store.add('services', { name, category: '', active: true }).id;
-    }
-    const items = collectSaleItems();
-    if (!items.length) { flash('error', 'Adicione ao menos um produto válido.'); render(); return; }
     try {
-      registerSale({ patientId, date: fd.get('date'), serviceId, items, paymentMethod: fd.get('paymentMethod') });
+      if (patientId === '__new__') {
+        const name = (fd.get('newPatientName') || '').trim();
+        if (!name) { flash('error', 'Informe o nome do novo paciente.'); render(); return; }
+        patientId = (await Store.add('patients', { name })).id;
+      }
+      let serviceId = fd.get('serviceId');
+      if (serviceId === '__new__') {
+        const name = (fd.get('newServiceName') || '').trim();
+        if (!name) { flash('error', 'Informe o nome do novo serviço.'); render(); return; }
+        serviceId = (await Store.add('services', { name, category: '', active: true })).id;
+      }
+      const items = collectSaleItems();
+      if (!items.length) { flash('error', 'Adicione ao menos um produto válido.'); render(); return; }
+      await registerSale({ patientId, date: fd.get('date'), serviceId, items, paymentMethod: fd.get('paymentMethod') });
       flash('success', 'Venda lançada e timeline de tratamento gerada.');
       go('timeline/' + patientId);
     } catch (err) {
@@ -914,12 +917,14 @@ function renderTimeline(patientId) {
   if (patient) renderTimelineBody(patient);
 }
 
-function renderTimelineBody(patient) {
+async function renderTimelineBody(patient) {
   const treatments = treatmentsByPatient(patient.id);
   const consumptions = Store.find('consumptions', c => c.patientId === patient.id).sort((a, b) => a.date < b.date ? 1 : -1);
-  const portalUrl = buildPortalPatientUrl(patient.id);
+  const portalUrl = await buildPortalPatientUrl(patient.id);
+  const bodyEl = document.getElementById('timeline-body');
+  if (!bodyEl) return; // usuário já navegou para outra tela enquanto o link era gerado
 
-  document.getElementById('timeline-body').innerHTML = `
+  bodyEl.innerHTML = `
     <div class="card">
       <h3>${esc(patient.name)} <span style="font-weight:400;color:var(--cinza-700);font-size:12px;">· ID ${esc(patient.id)}</span></h3>
       <p class="hint">Este paciente possui <b>${treatments.length}</b> mapeamento(s) de tratamento — cada venda gera um mapeamento independente, com seu próprio andamento. Nenhum valor financeiro é exibido nesta tela.</p>
@@ -970,27 +975,36 @@ function renderTimelineBody(patient) {
     </div>
   `;
 
-  document.querySelectorAll('[data-del-sale]').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('[data-del-sale]').forEach(b => b.addEventListener('click', async () => {
     if (!confirmAction('Excluir este mapeamento? Todas as baixas já feitas neste mapeamento serão estornadas ao estoque. Esta ação não pode ser desfeita.')) return;
-    deleteSale(b.dataset.delSale);
+    await deleteSale(b.dataset.delSale);
     flash('success', 'Mapeamento excluído e estoque estornado.');
     go('timeline/' + patient.id);
   }));
-  document.querySelectorAll('[data-del-consumption]').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('[data-del-consumption]').forEach(b => b.addEventListener('click', async () => {
     if (!confirmAction('Excluir esta baixa? A quantidade será devolvida ao estoque e, se for item prescrito, o saldo do mapeamento voltará a ficar pendente.')) return;
-    deleteConsumption(b.dataset.delConsumption);
+    await deleteConsumption(b.dataset.delConsumption);
     flash('success', 'Baixa excluída e estoque estornado.');
     go('timeline/' + patient.id);
   }));
 }
 
-function buildPortalPatientUrl(patientId) {
+async function buildPortalPatientUrl(patientId) {
+  const token = await getOrCreatePatientToken(patientId);
   const base = location.href.replace(/index\.html.*$/, '').replace(/#.*$/, '');
-  return base + 'portal.html?patient=' + patientId;
+  return base + 'portal.html?token=' + token;
 }
-function buildPortalSessionUrl(consumptionId) {
+async function buildPortalSessionUrl(consumptionId) {
+  const token = await ensureSessionToken(consumptionId);
   const base = location.href.replace(/index\.html.*$/, '').replace(/#.*$/, '');
-  return base + 'portal.html?session=' + consumptionId;
+  return base + 'portal.html?session=' + token;
+}
+// versão síncrona — usa o token já existente no cache (criado no momento da baixa fechada)
+function getPortalSessionUrlSync(consumptionId) {
+  const t = Store.findOne('portalTokens', pt => pt.consumptionId === consumptionId && !pt.revoked);
+  if (!t) return null;
+  const base = location.href.replace(/index\.html.*$/, '').replace(/#.*$/, '');
+  return base + 'portal.html?session=' + t.token;
 }
 
 /* =============================== TODOS OS TRATAMENTOS =============================== */
@@ -1078,9 +1092,9 @@ function renderPendencias() {
         <tbody>
           ${pendentes.length ? pendentes.map(c => {
             const days = Math.floor((Date.now() - new Date(c.date)) / 86400000);
-            const url = buildPortalSessionUrl(c.id);
+            const url = getPortalSessionUrlSync(c.id) || '';
             const patient = Store.get('patients', c.patientId);
-            const waLink = patient && patient.phone ? `https://wa.me/${patient.phone.replace(/\D/g, '')}?text=${encodeURIComponent('Olá ' + patient.name + ', confirme seu atendimento: ' + url)}` : null;
+            const waLink = (url && patient && patient.phone) ? `https://wa.me/${patient.phone.replace(/\D/g, '')}?text=${encodeURIComponent('Olá ' + patient.name + ', confirme seu atendimento: ' + url)}` : null;
             return `<tr>
               <td>${esc(patientName(c.patientId))}</td>
               <td>${esc(productName(c.productId))}</td>
@@ -1088,7 +1102,7 @@ function renderPendencias() {
               <td>${fmtDate(c.date)}</td>
               <td>${days > 3 ? `<span class="pill red">${days}d</span>` : days + 'd'}</td>
               <td>
-                <button class="btn secondary sm" data-copy="${url}">Copiar link</button>
+                ${url ? `<button class="btn secondary sm" data-copy="${url}">Copiar link</button>` : `<span class="hint">Link indisponível</span>`}
                 ${waLink ? `<a class="btn sm" style="margin-left:4px;" href="${waLink}" target="_blank">WhatsApp</a>` : ''}
               </td>
             </tr>`;
@@ -1185,11 +1199,11 @@ function renderBaixaBody(patientId) {
     }
   });
 
-  document.querySelectorAll('[data-baixa-fechada]').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('[data-baixa-fechada]').forEach(b => b.addEventListener('click', async () => {
     const tiId = b.dataset.baixaFechada;
     const qty = Number(document.getElementById('qty-' + tiId).value);
     try {
-      registerBaixaFechada({ patientId, treatmentItemId: tiId, qty });
+      await registerBaixaFechada({ patientId, treatmentItemId: tiId, qty });
       flash('success', 'Baixa registrada. Estoque atualizado e pendência de confirmação criada para o paciente.');
       go('baixa/' + patientId);
     } catch (err) { flash('error', err.message); render(); }
@@ -1247,18 +1261,18 @@ function renderBaixaInsumo() {
     if (opt && opt.dataset.unit) document.querySelector('#form-livre [name=unit]').value = opt.dataset.unit;
   });
   const form = document.getElementById('form-livre');
-  if (form) form.addEventListener('submit', e => {
+  if (form) form.addEventListener('submit', async e => {
     e.preventDefault();
     const fd = new FormData(e.target);
     try {
-      registerBaixaLivre({ productId: fd.get('productId'), qty: Number(fd.get('qty')), unit: fd.get('unit'), note: fd.get('note') });
+      await registerBaixaLivre({ productId: fd.get('productId'), qty: Number(fd.get('qty')), unit: fd.get('unit'), note: fd.get('note') });
       flash('success', 'Saída de insumo registrada e estoque atualizado.');
       go('baixa-insumo');
     } catch (err) { flash('error', err.message); render(); }
   });
-  document.querySelectorAll('[data-del-consumption]').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('[data-del-consumption]').forEach(b => b.addEventListener('click', async () => {
     if (!confirmAction('Excluir esta saída de insumo? A quantidade será devolvida ao estoque.')) return;
-    deleteConsumption(b.dataset.delConsumption);
+    await deleteConsumption(b.dataset.delConsumption);
     flash('success', 'Saída excluída e estoque estornado.');
     go('baixa-insumo');
   }));
@@ -1344,7 +1358,7 @@ function renderCompras(category) {
     renderPurchaseItems(products);
   });
 
-  document.getElementById('form-purchase').addEventListener('submit', e => {
+  document.getElementById('form-purchase').addEventListener('submit', async e => {
     e.preventDefault();
     const fd = new FormData(e.target);
     const items = purchaseItemsBuffer.filter(it => it.productId).map(it => {
@@ -1367,7 +1381,7 @@ function renderCompras(category) {
     }).filter(it => it.qty > 0);
     if (!items.length) { flash('error', 'Adicione ao menos um produto com quantidade válida.'); render(); return; }
     try {
-      registerPurchase({
+      await registerPurchase({
         category, supplierId: fd.get('supplierId'), items,
         paymentMethod: fd.get('paymentMethod'), status: fd.get('status'),
         date: fd.get('date'), dueDate: fd.get('dueDate')
@@ -1378,9 +1392,9 @@ function renderCompras(category) {
   });
 
   document.querySelectorAll('[data-pdf]').forEach(b => b.addEventListener('click', () => openPurchasePdf(b.dataset.pdf)));
-  document.querySelectorAll('[data-del-purchase]').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('[data-del-purchase]').forEach(b => b.addEventListener('click', async () => {
     if (!confirmAction('Excluir esta compra? Se já houver recebimento conferido, o estoque correspondente será estornado. Esta ação não pode ser desfeita.')) return;
-    deletePurchase(b.dataset.delPurchase);
+    await deletePurchase(b.dataset.delPurchase);
     flash('success', 'Compra excluída.');
     go('compras/' + category);
   }));
@@ -1627,22 +1641,22 @@ function renderRecebimento(category) {
 
   document.querySelectorAll('[data-cat]').forEach(b => b.addEventListener('click', () => go('recebimento/' + b.dataset.cat)));
   document.querySelectorAll('[data-receive]').forEach(b => b.addEventListener('click', () => renderReceiptForm(b.dataset.receive, category)));
-  document.querySelectorAll('[data-del-open-purchase]').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('[data-del-open-purchase]').forEach(b => b.addEventListener('click', async () => {
     if (!confirmAction('Excluir esta compra em aberto?')) return;
-    deletePurchase(b.dataset.delOpenPurchase);
+    await deletePurchase(b.dataset.delOpenPurchase);
     flash('success', 'Compra excluída.');
     go('recebimento/' + category);
   }));
-  document.querySelectorAll('[data-confirm-receipt]').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('[data-confirm-receipt]').forEach(b => b.addEventListener('click', async () => {
     try {
-      confirmReceipt(b.dataset.confirmReceipt);
+      await confirmReceipt(b.dataset.confirmReceipt);
       flash('success', 'Compra conferida — estoque atualizado.');
       go('recebimento/' + category);
     } catch (err) { flash('error', err.message); render(); }
   }));
-  document.querySelectorAll('[data-del-receipt]').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('[data-del-receipt]').forEach(b => b.addEventListener('click', async () => {
     if (!confirmAction('Excluir este recebimento? Se já estava conferido, o estoque será estornado e a compra volta para "Compra em aberto".')) return;
-    deleteReceipt(b.dataset.delReceipt);
+    await deleteReceipt(b.dataset.delReceipt);
     flash('success', 'Recebimento excluído.');
     go('recebimento/' + category);
   }));
@@ -1679,7 +1693,7 @@ function renderReceiptForm(purchaseId, category) {
     </div>
   `;
   document.getElementById('cancel-receipt').addEventListener('click', () => { document.getElementById('receipt-form-box').innerHTML = ''; });
-  document.getElementById('form-receipt').addEventListener('submit', e => {
+  document.getElementById('form-receipt').addEventListener('submit', async e => {
     e.preventDefault();
     const fd = new FormData(e.target);
     const items = (purchase.items || []).map((it, idx) => ({
@@ -1687,7 +1701,7 @@ function renderReceiptForm(purchaseId, category) {
       qty: Number(fd.get('qty-' + idx)), lot: (fd.get('lot-' + idx) || '').trim()
     }));
     try {
-      registerReceipt({ purchaseId, items, nf: fd.get('nf'), notes: fd.get('notes') });
+      await registerReceipt({ purchaseId, items, nf: fd.get('nf'), notes: fd.get('notes') });
       flash('success', 'Recebimento registrado. Clique em "Compra conferida" para dar entrada no estoque.');
       go('recebimento/' + category);
     } catch (err) { flash('error', err.message); render(); }
@@ -1796,6 +1810,66 @@ function refTypeLabel(rt) {
   }[rt] || rt || '—';
 }
 
-renderShell();
-render();
-window.addEventListener('hashchange', render);
+/* =============================== LOGIN / INICIALIZAÇÃO =============================== */
+function renderLoginScreen(errorMsg) {
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <div class="login-screen">
+      <div class="login-card">
+        <h1>Clínica · Sistema</h1>
+        <p class="hint" style="margin-top:-6px;">Acesso da equipe</p>
+        ${errorMsg ? msg('error', esc(errorMsg)) : ''}
+        <form id="form-login">
+          <div class="field"><label>E-mail</label><input type="email" name="email" required autofocus></div>
+          <div class="field"><label>Senha</label><input type="password" name="password" required></div>
+          <div class="form-actions"><button class="btn" type="submit" style="width:100%;">Entrar</button></div>
+        </form>
+      </div>
+    </div>
+  `;
+  document.getElementById('form-login').addEventListener('submit', async e => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const btn = e.target.querySelector('button[type=submit]');
+    btn.disabled = true; btn.textContent = 'Entrando...';
+    const { error } = await sb.auth.signInWithPassword({ email: fd.get('email').trim(), password: fd.get('password') });
+    if (error) {
+      renderLoginScreen('Erro ao entrar: ' + error.message + ' (código: ' + (error.status || error.code || '?') + ')');
+      return;
+    }
+    await bootApp();
+  });
+}
+
+let hashListenerAttached = false;
+async function bootApp() {
+  const app = document.getElementById('app');
+  app.innerHTML = `<div class="boot-loading">Carregando dados...</div>`;
+  try {
+    await loadAllData();
+    await loadSettingsRow();
+    await seedIfEmpty();
+  } catch (e) {
+    console.error(e);
+    app.innerHTML = `<div class="boot-loading">Erro ao carregar dados: ${esc(e.message)}</div>`;
+    return;
+  }
+  renderShell();
+  render();
+  if (!hashListenerAttached) {
+    window.addEventListener('hashchange', render);
+    hashListenerAttached = true;
+  }
+}
+
+async function initAuth() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { renderLoginScreen(); return; }
+  await bootApp();
+}
+
+sb.auth.onAuthStateChange((event) => {
+  if (event === 'SIGNED_OUT') renderLoginScreen();
+});
+
+initAuth();

@@ -1,20 +1,7 @@
 /* ===========================================================================
-   storage.js — camada de dados (localStorage) + regras de negócio
+   storage.js — camada de dados (Supabase) + regras de negócio
    Sistema de Mapeamento de Tratamento, Vendas, Compras e Estoque (Clínica)
    =========================================================================== */
-
-const DB_PREFIX = 'cl_';
-
-const COLLECTIONS = [
-  'patients', 'services', 'products', 'units', 'suppliers', 'paymentMethods',
-  'sales', 'treatmentItems', 'consumptions', 'purchases', 'receipts', 'stockMovements'
-];
-
-const SETTINGS_KEY = 'cl_settings';
-
-function uid(prefix) {
-  return (prefix ? prefix + '_' : '') + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-}
 
 function nowISO() { return new Date().toISOString(); }
 
@@ -24,97 +11,136 @@ function todayInputDate() {
   return new Date(d - tz).toISOString().slice(0, 10);
 }
 
+/* ---------------------------------------------------------------------------
+   conversão snake_case (banco) <-> camelCase (app)
+   --------------------------------------------------------------------------- */
+function toCamelKey(k) { return k.replace(/_([a-z0-9])/g, (_, c) => c.toUpperCase()); }
+function toSnakeKey(k) { return k.replace(/[A-Z]/g, c => '_' + c.toLowerCase()); }
+function rowToCamel(row) {
+  if (!row) return row;
+  const out = {};
+  for (const k in row) out[toCamelKey(k)] = row[k];
+  return out;
+}
+function objToSnake(obj) {
+  const out = {};
+  for (const k in obj) out[toSnakeKey(k)] = obj[k];
+  return out;
+}
+
+const TABLE_MAP = {
+  patients: 'patients', services: 'services', products: 'products', units: 'units',
+  suppliers: 'suppliers', paymentMethods: 'payment_methods', sales: 'sales',
+  treatmentItems: 'treatment_items', consumptions: 'consumptions', purchases: 'purchases',
+  receipts: 'receipts', stockMovements: 'stock_movements', portalTokens: 'portal_tokens'
+};
+
+const cache = {};
+Object.keys(TABLE_MAP).forEach(k => cache[k] = []);
+
+const TABLES_WITH_UPDATED_AT = new Set(['patients', 'services', 'products', 'treatmentItems']);
+
+async function loadAllData() {
+  for (const key of Object.keys(TABLE_MAP)) {
+    const { data, error } = await sb.from(TABLE_MAP[key]).select('*');
+    if (error) throw error;
+    cache[key] = (data || []).map(rowToCamel);
+  }
+}
+
 const Store = {
-  _read(name) {
-    try {
-      const raw = localStorage.getItem(DB_PREFIX + name);
-      return raw ? JSON.parse(raw) : [];
-    } catch (e) {
-      console.error('Erro lendo', name, e);
-      return [];
-    }
+  all(name) { return cache[name] || []; },
+  get(name, id) { return (cache[name] || []).find(x => x.id === id) || null; },
+  find(name, predicate) { return (cache[name] || []).filter(predicate); },
+  findOne(name, predicate) { return (cache[name] || []).find(predicate) || null; },
+
+  async add(name, obj) {
+    const table = TABLE_MAP[name];
+    const payload = objToSnake(obj);
+    delete payload.id;
+    const { data, error } = await sb.from(table).insert(payload).select().single();
+    if (error) throw new Error(error.message);
+    const row = rowToCamel(data);
+    cache[name].push(row);
+    return row;
   },
-  _write(name, arr) {
-    localStorage.setItem(DB_PREFIX + name, JSON.stringify(arr));
+
+  async update(name, id, patch) {
+    const table = TABLE_MAP[name];
+    const withTimestamp = TABLES_WITH_UPDATED_AT.has(name)
+      ? Object.assign({}, patch, { updatedAt: patch.updatedAt || nowISO() })
+      : patch;
+    const payload = objToSnake(withTimestamp);
+    const { data, error } = await sb.from(table).update(payload).eq('id', id).select().single();
+    if (error) throw new Error(error.message);
+    const row = rowToCamel(data);
+    const idx = cache[name].findIndex(x => x.id === id);
+    if (idx !== -1) cache[name][idx] = row; else cache[name].push(row);
+    return row;
   },
-  all(name) { return this._read(name); },
-  get(name, id) { return this._read(name).find(x => x.id === id) || null; },
-  add(name, obj) {
-    const arr = this._read(name);
-    obj.id = obj.id || uid(name.slice(0, 3));
-    obj.createdAt = obj.createdAt || nowISO();
-    arr.push(obj);
-    this._write(name, arr);
-    return obj;
-  },
-  update(name, id, patch) {
-    const arr = this._read(name);
-    const idx = arr.findIndex(x => x.id === id);
-    if (idx === -1) return null;
-    arr[idx] = Object.assign({}, arr[idx], patch, { updatedAt: nowISO() });
-    this._write(name, arr);
-    return arr[idx];
-  },
-  remove(name, id) {
-    const arr = this._read(name).filter(x => x.id !== id);
-    this._write(name, arr);
-  },
-  find(name, predicate) { return this._read(name).filter(predicate); },
-  findOne(name, predicate) { return this._read(name).find(predicate) || null; }
+
+  async remove(name, id) {
+    const table = TABLE_MAP[name];
+    const { error } = await sb.from(table).delete().eq('id', id);
+    if (error) throw new Error(error.message);
+    cache[name] = cache[name].filter(x => x.id !== id);
+  }
 };
 
 /* ---------------------------------------------------------------------------
-   SEED — dados iniciais (unidades e formas de pagamento configuráveis)
+   SEED — dados iniciais (só roda se as tabelas de apoio estiverem vazias)
    --------------------------------------------------------------------------- */
-function seedIfEmpty() {
+async function seedIfEmpty() {
   if (Store.all('units').length === 0) {
-    ['Ampola', 'Frasco', 'ML', 'Unidade', 'KG', 'Grama', 'Caixa', 'Par', 'Seringa']
-      .forEach(name => Store.add('units', { name }));
+    for (const name of ['Ampola', 'Frasco', 'ML', 'Unidade', 'KG', 'Grama', 'Caixa', 'Par', 'Seringa']) {
+      await Store.add('units', { name });
+    }
   }
   if (Store.all('paymentMethods').length === 0) {
-    ['PIX', 'Cartão de Crédito', 'Cartão de Débito', 'Boleto', 'Dinheiro', 'Transferência']
-      .forEach(name => Store.add('paymentMethods', { name }));
+    for (const name of ['PIX', 'Cartão de Crédito', 'Cartão de Débito', 'Boleto', 'Dinheiro', 'Transferência']) {
+      await Store.add('paymentMethods', { name });
+    }
   }
-  // demonstração leve (pode ser apagada pelo usuário)
   if (Store.all('products').length === 0) {
-    Store.add('products', { name: 'Soro Fisiológico 500ml', category: 'medicamento', unit: 'ML', minStock: 20, stock: 0, controlType: 'fechado' });
-    Store.add('products', { name: 'Gaze Estéril', category: 'insumo', unit: 'Unidade', minStock: 50, stock: 0, controlType: 'livre' });
-    Store.add('products', { name: 'Algodão', category: 'insumo', unit: 'Grama', minStock: 100, stock: 0, controlType: 'livre' });
-    Store.add('products', { name: 'Luva de Procedimento (par)', category: 'insumo', unit: 'Par', minStock: 30, stock: 0, controlType: 'livre' });
+    await Store.add('products', { name: 'Soro Fisiológico 500ml', category: 'medicamento', unit: 'ML', minStock: 20, stock: 0, controlType: 'fechado' });
+    await Store.add('products', { name: 'Gaze Estéril', category: 'insumo', unit: 'Unidade', minStock: 50, stock: 0, controlType: 'livre' });
+    await Store.add('products', { name: 'Algodão', category: 'insumo', unit: 'Grama', minStock: 100, stock: 0, controlType: 'livre' });
+    await Store.add('products', { name: 'Luva de Procedimento (par)', category: 'insumo', unit: 'Par', minStock: 30, stock: 0, controlType: 'livre' });
   }
   if (Store.all('services').length === 0) {
-    Store.add('services', { name: 'Aplicação Injetável', category: 'Procedimento', active: true });
-    Store.add('services', { name: 'Hidratação Venosa', category: 'Procedimento', active: true });
+    await Store.add('services', { name: 'Aplicação Injetável', category: 'Procedimento', active: true });
+    await Store.add('services', { name: 'Hidratação Venosa', category: 'Procedimento', active: true });
   }
 }
 
 /* ---------------------------------------------------------------------------
-   CONFIGURAÇÕES DA CLÍNICA (nome + logo — usados no portal do paciente)
+   CONFIGURAÇÕES DA CLÍNICA (nome + logo + dados da empresa)
    --------------------------------------------------------------------------- */
-function getSettings() {
-  try {
-    const raw = localStorage.getItem(SETTINGS_KEY);
-    return raw ? JSON.parse(raw) : { clinicName: '', logoDataUrl: '' };
-  } catch (e) {
-    return { clinicName: '', logoDataUrl: '' };
-  }
+async function loadSettingsRow() {
+  const { data, error } = await sb.from('settings').select('*').eq('id', 1).single();
+  if (error) throw new Error(error.message);
+  cache.settings = [rowToCamel(data)];
 }
-function saveSettings(patch) {
-  const current = getSettings();
-  const next = Object.assign({}, current, patch);
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify(next));
-  return next;
+function getSettings() {
+  return (cache.settings && cache.settings[0]) || {};
+}
+async function saveSettings(patch) {
+  const payload = objToSnake(patch);
+  const { data, error } = await sb.from('settings').update(payload).eq('id', 1).select().single();
+  if (error) throw new Error(error.message);
+  cache.settings = [rowToCamel(data)];
+  return cache.settings[0];
 }
 
 /* ---------------------------------------------------------------------------
    PRODUTOS / ESTOQUE
    --------------------------------------------------------------------------- */
-function adjustStock(productId, delta, type, refType, refId, unit, note) {
+async function adjustStock(productId, delta, type, refType, refId, unit, note) {
   const p = Store.get('products', productId);
   if (!p) throw new Error('Produto não encontrado');
   const newStock = (p.stock || 0) + delta;
-  Store.update('products', productId, { stock: newStock });
-  Store.add('stockMovements', {
+  await Store.update('products', productId, { stock: newStock });
+  await Store.add('stockMovements', {
     productId, type, qty: Math.abs(delta), unit: unit || p.unit,
     refType, refId, date: nowISO(), note: note || ''
   });
@@ -125,19 +151,36 @@ function lowStockAlerts() {
 }
 
 /* ---------------------------------------------------------------------------
+   TOKENS DO PORTAL DO PACIENTE
+   --------------------------------------------------------------------------- */
+async function getOrCreatePatientToken(patientId) {
+  const existing = Store.findOne('portalTokens', t => t.patientId === patientId && !t.consumptionId && !t.revoked);
+  if (existing) return existing.token;
+  const row = await Store.add('portalTokens', { patientId, consumptionId: null });
+  return row.token;
+}
+async function ensureSessionToken(consumptionId) {
+  const existing = Store.findOne('portalTokens', t => t.consumptionId === consumptionId && !t.revoked);
+  if (existing) return existing.token;
+  const c = Store.get('consumptions', consumptionId);
+  if (!c) throw new Error('Consumo não encontrado');
+  const row = await Store.add('portalTokens', { patientId: c.patientId, consumptionId });
+  return row.token;
+}
+
+/* ---------------------------------------------------------------------------
    MAPEAMENTO — VENDA
    --------------------------------------------------------------------------- */
-function registerSale({ patientId, date, serviceId, items, paymentMethod }) {
+async function registerSale({ patientId, date, serviceId, items, paymentMethod }) {
   if (!patientId) throw new Error('Paciente é obrigatório');
   if (!items || !items.length) throw new Error('Ao menos um item é obrigatório');
 
-  const sale = Store.add('sales', {
+  const sale = await Store.add('sales', {
     patientId, date: date || todayInputDate(), serviceId, items, paymentMethod
   });
 
-  // gera itens de tratamento (timeline) — um por item vendido
-  items.forEach(it => {
-    Store.add('treatmentItems', {
+  for (const it of items) {
+    await Store.add('treatmentItems', {
       saleId: sale.id,
       patientId,
       serviceId,
@@ -147,26 +190,27 @@ function registerSale({ patientId, date, serviceId, items, paymentMethod }) {
       qtyUsed: 0,
       status: 'nao_iniciado'
     });
-  });
+  }
 
   return sale;
 }
 
-function deleteSale(saleId) {
+async function deleteSale(saleId) {
   const items = Store.find('treatmentItems', ti => ti.saleId === saleId);
-  items.forEach(ti => {
+  for (const ti of items) {
     const consumptions = Store.find('consumptions', c => c.treatmentItemId === ti.id);
-    consumptions.forEach(c => deleteConsumption(c.id));
-    Store.remove('treatmentItems', ti.id);
-  });
-  Store.remove('sales', saleId);
+    for (const c of consumptions) await deleteConsumption(c.id);
+    await Store.remove('treatmentItems', ti.id);
+  }
+  await Store.remove('sales', saleId);
 }
 
-function deletePatient(patientId) {
-  Store.find('sales', s => s.patientId === patientId).forEach(s => deleteSale(s.id));
-  // baixas livres não vinculadas a treatmentItem (ex: insumo) também precisam ser estornadas
-  Store.find('consumptions', c => c.patientId === patientId).forEach(c => deleteConsumption(c.id));
-  Store.remove('patients', patientId);
+async function deletePatient(patientId) {
+  const sales = Store.find('sales', s => s.patientId === patientId);
+  for (const s of sales) await deleteSale(s.id);
+  const consumptions = Store.find('consumptions', c => c.patientId === patientId);
+  for (const c of consumptions) await deleteConsumption(c.id);
+  await Store.remove('patients', patientId);
 }
 
 function treatmentItemsByPatient(patientId) {
@@ -182,10 +226,6 @@ function pendingFechadoByPatient(patientId) {
   });
 }
 
-/* ---------------------------------------------------------------------------
-   MAPEAMENTOS — um paciente pode ter vários (cada venda gera um mapeamento
-   independente, com seus próprios itens e seu próprio status de ciclo de vida)
-   --------------------------------------------------------------------------- */
 function computeGroupStatus(items) {
   if (!items.length) return 'nao_iniciado';
   if (items.every(i => i.status === 'finalizado')) return 'finalizado';
@@ -224,7 +264,7 @@ function allTreatments() {
 /* ---------------------------------------------------------------------------
    BAIXA (CONSUMO)
    --------------------------------------------------------------------------- */
-function registerBaixaFechada({ patientId, treatmentItemId, qty }) {
+async function registerBaixaFechada({ patientId, treatmentItemId, qty }) {
   const ti = Store.get('treatmentItems', treatmentItemId);
   if (!ti) throw new Error('Item de tratamento não encontrado');
   if (ti.patientId !== patientId) throw new Error('Item não pertence a este paciente');
@@ -235,34 +275,32 @@ function registerBaixaFechada({ patientId, treatmentItemId, qty }) {
 
   const product = Store.get('products', ti.productId);
 
-  // baixa no estoque
-  adjustStock(product.id, -qty, 'saida', 'baixa_fechada', ti.id, ti.unit);
+  await adjustStock(product.id, -qty, 'saida', 'baixa_fechada', ti.id, ti.unit);
 
-  // consumo
-  const consumption = Store.add('consumptions', {
+  const consumption = await Store.add('consumptions', {
     patientId, productId: product.id, qty, unit: ti.unit,
     type: 'fechado', treatmentItemId: ti.id, date: nowISO(),
     confirmationStatus: 'pendente'
   });
 
-  // atualiza item de tratamento
   const newUsed = ti.qtyUsed + qty;
   const newStatus = newUsed >= ti.qtyTotal ? 'finalizado' : 'em_andamento';
-  Store.update('treatmentItems', ti.id, { qtyUsed: newUsed, status: newStatus });
+  await Store.update('treatmentItems', ti.id, { qtyUsed: newUsed, status: newStatus });
+
+  await ensureSessionToken(consumption.id);
 
   return consumption;
 }
 
-function registerBaixaLivre({ productId, qty, unit, note }) {
+async function registerBaixaLivre({ productId, qty, unit, note }) {
   const product = Store.get('products', productId);
   if (!product) throw new Error('Produto não encontrado');
   if (product.category !== 'insumo') throw new Error('Baixa livre é exclusiva de produtos da categoria Insumo');
   qty = Number(qty);
   if (!(qty > 0)) throw new Error('Quantidade inválida');
 
-  adjustStock(product.id, -qty, 'saida', 'baixa_livre', null, unit || product.unit, note || '');
+  await adjustStock(product.id, -qty, 'saida', 'baixa_livre', null, unit || product.unit, note || '');
 
-  // baixa de insumo é um lançamento de estoque puro — não é vinculada a paciente
   return Store.add('consumptions', {
     patientId: null, productId: product.id, qty, unit: unit || product.unit,
     type: 'livre', treatmentItemId: null, date: nowISO(),
@@ -270,26 +308,28 @@ function registerBaixaLivre({ productId, qty, unit, note }) {
   });
 }
 
-function deleteConsumption(consumptionId) {
+async function deleteConsumption(consumptionId) {
   const c = Store.get('consumptions', consumptionId);
   if (!c) return;
 
-  // estorna o estoque (devolve a quantidade baixada)
-  adjustStock(c.productId, Number(c.qty), 'entrada', 'estorno_baixa', c.id, c.unit, 'Estorno de baixa excluída');
+  await adjustStock(c.productId, Number(c.qty), 'entrada', 'estorno_baixa', c.id, c.unit, 'Estorno de baixa excluída');
 
   if (c.type === 'fechado' && c.treatmentItemId) {
     const ti = Store.get('treatmentItems', c.treatmentItemId);
     if (ti) {
       const newUsed = Math.max(0, ti.qtyUsed - Number(c.qty));
       const newStatus = newUsed <= 0 ? 'nao_iniciado' : (newUsed >= ti.qtyTotal ? 'finalizado' : 'em_andamento');
-      Store.update('treatmentItems', ti.id, { qtyUsed: newUsed, status: newStatus });
+      await Store.update('treatmentItems', ti.id, { qtyUsed: newUsed, status: newStatus });
     }
   }
 
-  Store.remove('consumptions', consumptionId);
+  const tokens = Store.find('portalTokens', t => t.consumptionId === consumptionId);
+  for (const t of tokens) await Store.remove('portalTokens', t.id);
+
+  await Store.remove('consumptions', consumptionId);
 }
 
-function confirmSession(consumptionId) {
+async function confirmSession(consumptionId) {
   const c = Store.get('consumptions', consumptionId);
   if (!c) throw new Error('Sessão não encontrada');
   if (c.type !== 'fechado') throw new Error('Apenas sessões de itens prescritos exigem confirmação');
@@ -301,7 +341,7 @@ function confirmSession(consumptionId) {
 /* ---------------------------------------------------------------------------
    COMPRAS
    --------------------------------------------------------------------------- */
-function registerPurchase({ category, supplierId, items, paymentMethod, status, date, dueDate }) {
+async function registerPurchase({ category, supplierId, items, paymentMethod, status, date, dueDate }) {
   if (!items || !items.length) throw new Error('Ao menos um item é obrigatório');
   return Store.add('purchases', {
     category, supplierId, items, paymentMethod,
@@ -311,9 +351,10 @@ function registerPurchase({ category, supplierId, items, paymentMethod, status, 
   });
 }
 
-function deletePurchase(purchaseId) {
-  Store.find('receipts', r => r.purchaseId === purchaseId).forEach(r => deleteReceipt(r.id, { keepOrphan: true }));
-  Store.remove('purchases', purchaseId);
+async function deletePurchase(purchaseId) {
+  const receipts = Store.find('receipts', r => r.purchaseId === purchaseId);
+  for (const r of receipts) await deleteReceipt(r.id, { keepOrphan: true });
+  await Store.remove('purchases', purchaseId);
 }
 
 function purchaseTotal(purchase) {
@@ -323,7 +364,7 @@ function purchaseTotal(purchase) {
 /* ---------------------------------------------------------------------------
    COMPRAS CHEGARAM (RECEBIMENTO)
    --------------------------------------------------------------------------- */
-function registerReceipt({ purchaseId, items, nf, notes }) {
+async function registerReceipt({ purchaseId, items, nf, notes }) {
   const purchase = Store.get('purchases', purchaseId);
   if (!purchase) throw new Error('Compra não encontrada');
   return Store.add('receipts', {
@@ -332,34 +373,34 @@ function registerReceipt({ purchaseId, items, nf, notes }) {
   });
 }
 
-function confirmReceipt(receiptId) {
+async function confirmReceipt(receiptId) {
   const receipt = Store.get('receipts', receiptId);
   if (!receipt) throw new Error('Recebimento não encontrado');
   if (receipt.status === 'conferida') return receipt;
 
-  (receipt.items || []).forEach(it => {
-    adjustStock(it.productId, Number(it.qty), 'entrada', 'compra_conferida', receipt.id, it.unit,
+  for (const it of (receipt.items || [])) {
+    await adjustStock(it.productId, Number(it.qty), 'entrada', 'compra_conferida', receipt.id, it.unit,
       it.lot ? ('Lote: ' + it.lot) : '');
-  });
+  }
 
-  Store.update('receipts', receiptId, { status: 'conferida', confirmedAt: nowISO() });
-  Store.update('purchases', receipt.purchaseId, { status: 'recebido' });
+  await Store.update('receipts', receiptId, { status: 'conferida', confirmedAt: nowISO() });
+  await Store.update('purchases', receipt.purchaseId, { status: 'recebido' });
   return Store.get('receipts', receiptId);
 }
 
-function deleteReceipt(receiptId, opts) {
+async function deleteReceipt(receiptId, opts) {
   const receipt = Store.get('receipts', receiptId);
   if (!receipt) return;
 
   if (receipt.status === 'conferida') {
-    (receipt.items || []).forEach(it => {
-      adjustStock(it.productId, -Number(it.qty), 'saida', 'estorno_recebimento', receipt.id, it.unit, 'Estorno de recebimento excluído');
-    });
+    for (const it of (receipt.items || [])) {
+      await adjustStock(it.productId, -Number(it.qty), 'saida', 'estorno_recebimento', receipt.id, it.unit, 'Estorno de recebimento excluído');
+    }
     if (!(opts && opts.keepOrphan)) {
-      Store.update('purchases', receipt.purchaseId, { status: 'compra_aberto' });
+      await Store.update('purchases', receipt.purchaseId, { status: 'compra_aberto' });
     }
   }
-  Store.remove('receipts', receiptId);
+  await Store.remove('receipts', receiptId);
 }
 
 /* ---------------------------------------------------------------------------
@@ -372,8 +413,6 @@ function supplierName(id) { const s = Store.get('suppliers', id); return s ? s.n
 
 function fmtDate(iso) {
   if (!iso) return '—';
-  // datas "YYYY-MM-DD" (sem hora) são tratadas como data local, evitando
-  // que a conversão UTC->local exiba o dia anterior em fusos negativos (ex: Brasil)
   const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
   if (dateOnly) {
     return `${dateOnly[3]}/${dateOnly[2]}/${dateOnly[1]}`;

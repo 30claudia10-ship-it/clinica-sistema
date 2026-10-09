@@ -32,12 +32,8 @@ const TABLE_MAP = {
   patients: 'patients', services: 'services', products: 'products', units: 'units',
   suppliers: 'suppliers', paymentMethods: 'payment_methods', sales: 'sales',
   treatmentItems: 'treatment_items', consumptions: 'consumptions', purchases: 'purchases',
-  receipts: 'receipts', stockMovements: 'stock_movements', portalTokens: 'portal_tokens',
-  thirdParties: 'third_parties', teamMembers: 'team_members', quotes: 'quotes'
+  receipts: 'receipts', stockMovements: 'stock_movements', portalTokens: 'portal_tokens'
 };
-
-// tabelas da migração 4 (orçamento cirúrgico): se ainda não existirem, o resto do sistema continua funcionando
-const OPTIONAL_TABLES = new Set(['thirdParties', 'teamMembers', 'quotes']);
 
 const cache = {};
 Object.keys(TABLE_MAP).forEach(k => cache[k] = []);
@@ -47,10 +43,7 @@ const TABLES_WITH_UPDATED_AT = new Set(['patients', 'services', 'products', 'tre
 async function loadAllData() {
   for (const key of Object.keys(TABLE_MAP)) {
     const { data, error } = await sb.from(TABLE_MAP[key]).select('*');
-    if (error) {
-      if (OPTIONAL_TABLES.has(key)) { window.__quoteTablesMissing = true; cache[key] = []; continue; }
-      throw error;
-    }
+    if (error) throw error;
     cache[key] = (data || []).map(rowToCamel);
   }
 }

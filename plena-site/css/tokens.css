@@ -1,0 +1,62 @@
+/* ==========================================================================
+   TOKENS DO PLENA  (único lugar com valores de cor)
+   CONFIRMADOS nos SVGs da marca: seiva, amora, damasco, ink.
+   PROVISÓRIOS (marcados): ainda não recebi o tokens.json. Substitua pelos
+   valores reais; o resto do CSS só usa estas variáveis.
+   ========================================================================== */
+@font-face{font-family:"Fraunces";src:url("../assets/fonts/fraunces-latin-wght-normal.woff2") format("woff2");font-weight:100 900;font-style:normal;font-display:swap}
+@font-face{font-family:"Figtree";src:url("../assets/fonts/figtree-latin-wght-normal.woff2") format("woff2");font-weight:300 900;font-style:normal;font-display:swap}
+
+:root{
+  color-scheme: light;
+  /* superfícies */
+  --surface-100:#f7f0e5;   /* PROVISÓRIO areia */
+  --surface-200:#ece2d2;   /* PROVISÓRIO cards */
+  --ink:#2a2320;           /* confirmado (logo mono) */
+  --ink-suave:#54483f;     /* PROVISÓRIO texto secundário */
+  --linha:#d9ccb8;         /* PROVISÓRIO bordas */
+  /* marca */
+  --seiva:#3f5b45;         /* confirmado: ação */
+  --on-seiva:#ffffff;
+  --seiva-hover:#334b38;   /* PROVISÓRIO */
+  --amora:#7a2e3b;         /* confirmado: emoção */
+  --on-amora:#ffffff;
+  --damasco:#e8a77e;       /* confirmado: grandes blocos */
+  --on-damasco:#2a2320;
+  --mel:#d9a441;           /* PROVISÓRIO: conquistas */
+  --on-mel:#2a2320;
+  /* fases da jornada (PROVISÓRIOS) */
+  --fase-coerencia:#e6c98b;
+  --fase-enraizar:#d1a982;
+  --fase-estruturar:#b3c7a8;
+  --fase-desenvolver:#95bba0;
+  --fase-sustentar:#e8a77e;
+  --on-fase:#2a2320;
+  /* foco, forma, sombra */
+  --erro:#7a2e3b;
+  --foco:#7a2e3b;
+  --radius-m:20px;
+  --radius-full:999px;
+  --sombra-suave:0 6px 24px rgba(42,35,32,.10);
+  --fonte-titulo:"Fraunces",Georgia,serif;
+  --fonte-texto:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+/* Tema escuro automático, com opção manual via [data-tema] */
+@media (prefers-color-scheme: dark){
+  :root:not([data-tema="claro"]){
+    color-scheme: dark;
+    --surface-100:#1d1815; --surface-200:#2a231f; --ink:#f4ece1; --ink-suave:#cfc3b4; --linha:#443a33;
+    --seiva:#a9c9af; --on-seiva:#1d2a20; --seiva-hover:#bfdcc4;
+    --amora:#8c3a49; --on-amora:#ffffff;
+    --damasco:#e8a77e; --on-damasco:#2a2320;
+    --foco:#f0b9a0; --erro:#f0b9a0; --sombra-suave:0 6px 24px rgba(0,0,0,.4);
+  }
+}
+:root[data-tema="escuro"]{
+  color-scheme: dark;
+  --surface-100:#1d1815; --surface-200:#2a231f; --ink:#f4ece1; --ink-suave:#cfc3b4; --linha:#443a33;
+  --seiva:#a9c9af; --on-seiva:#1d2a20; --seiva-hover:#bfdcc4;
+  --amora:#8c3a49; --on-amora:#ffffff;
+  --damasco:#e8a77e; --on-damasco:#2a2320;
+  --foco:#f0b9a0; --erro:#f0b9a0; --sombra-suave:0 6px 24px rgba(0,0,0,.4);
+}

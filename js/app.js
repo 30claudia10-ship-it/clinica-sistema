@@ -6,10 +6,6 @@ const NAV = [
   { group: 'Visão Geral', items: [
     { id: 'dashboard', label: 'Dashboard' },
   ]},
-  { group: 'Orçamento Cirúrgico', items: [
-    { id: 'orcamento', label: 'Novo orçamento' },
-    { id: 'orcamentos', label: 'Orçamentos' },
-  ]},
   { group: 'Mapeamento', items: [
     { id: 'venda', label: 'Nova Venda' },
     { id: 'timeline', label: 'Timeline do Paciente' },
@@ -21,7 +17,7 @@ const NAV = [
     { id: 'baixa-insumo', label: 'Baixa de Insumo (Estoque)' },
   ]},
   { group: 'Compras', items: [
-    { id: 'compras', label: 'Compras (fornecedores)' },
+    { id: 'compras', label: 'Orçamento / Compra' },
     { id: 'contas-a-pagar', label: 'Contas a Pagar' },
     { id: 'recebimento', label: 'Compras Chegaram' },
   ]},
@@ -38,7 +34,7 @@ const NAV = [
     { id: 'unidades', label: 'Unidades de Medida' },
     { id: 'fornecedores', label: 'Fornecedores' },
     { id: 'pagamentos', label: 'Formas de Pagamento' },
-    { id: 'configuracoes', label: 'Configurações' },
+    { id: 'configuracoes', label: 'Configurações da Clínica' },
   ]},
 ];
 
@@ -51,42 +47,21 @@ function go(id) {
   else location.hash = newHash;
 }
 
-const NAV_ICONS = {
-  'Visão Geral': '<svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>',
-  'Orçamento Cirúrgico': '<svg viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/></svg>',
-  'Mapeamento': '<svg viewBox="0 0 24 24"><path d="M12 21s7-6.2 7-11a7 7 0 0 0-14 0c0 4.8 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>',
-  'Baixa': '<svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 20h16"/></svg>',
-  'Compras': '<svg viewBox="0 0 24 24"><path d="M6 6h15l-1.6 8.2a2 2 0 0 1-2 1.6H8.6a2 2 0 0 1-2-1.6L5 3H2"/><circle cx="9" cy="20" r="1.3"/><circle cx="18" cy="20" r="1.3"/></svg>',
-  'Estoque': '<svg viewBox="0 0 24 24"><path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg>',
-  'Ferramentas': '<svg viewBox="0 0 24 24"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.4-.6-.6-2.4z"/></svg>',
-  'Cadastros': '<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M17 11a3 3 0 1 0 0-6M18 14.2a6 6 0 0 1 3.5 5.8"/></svg>'
-};
-
 function renderShell() {
   const app = document.getElementById('app');
-  const s = getSettings();
-  const doctor = s.doctorName || s.clinicName || 'Clínica';
   app.innerHTML = `
-    <div class="app" id="app-root">
+    <div class="app">
       <aside class="sidebar">
-        <div class="brand">
-          ${s.logoDataUrl ? `<img src="${esc(s.logoDataUrl)}" style="max-height:40px;max-width:46px;border-radius:50%;object-fit:cover">` : `<div class="mono">${esc(qInitials(doctor))}</div>`}
-          <div class="name">${esc(doctor)}<small>${esc(s.doctorTitle || 'Sistema da clínica')}</small></div>
-        </div>
+        <h1>Clínica · Sistema<small>Tratamento · Vendas · Estoque</small></h1>
         <div id="nav"></div>
-        <div class="side-foot"><button class="nav-btn" id="logout-btn">Sair</button></div>
+        <button class="nav-btn" id="logout-btn" style="margin-top:auto;border-top:1px solid rgba(255,255,255,.12);">Sair</button>
       </aside>
       <main class="main">
-        <button class="menu-toggle" id="menu-toggle">☰ Menu</button>
         <div id="content"></div>
       </main>
     </div>
   `;
   renderNav();
-  document.getElementById('menu-toggle').addEventListener('click', () => document.getElementById('app-root').classList.toggle('menu-open'));
-  document.getElementById('app-root').addEventListener('click', e => {
-    if (e.target.closest('.nav-btn[data-nav]')) document.getElementById('app-root').classList.remove('menu-open');
-  });
   document.getElementById('logout-btn').addEventListener('click', async () => {
     if (!confirmAction('Sair da conta?')) return;
     await sb.auth.signOut();
@@ -97,17 +72,15 @@ function renderNav() {
   const r = route().split('/')[0];
   const pendCount = Store.find('consumptions', c => c.type === 'fechado' && c.confirmationStatus === 'pendente').length;
   const lowStock = lowStockAlerts().length;
-  const draftQuotes = Store.find('quotes', q => q.status === 'rascunho').length;
   const nav = document.getElementById('nav');
   nav.innerHTML = NAV.map(g => `
     <div class="nav-group">
-      <div class="nav-group-title">${NAV_ICONS[g.group] || ''}${g.group}</div>
+      <div class="nav-group-title">${g.group}</div>
       ${g.items.map(it => `
         <button class="nav-btn ${r === it.id ? 'active' : ''}" data-nav="${it.id}">
           ${it.label}
           ${it.id === 'pendencias' && pendCount ? `<span class="badge-alert">${pendCount}</span>` : ''}
           ${it.id === 'estoque' && lowStock ? `<span class="badge-alert">${lowStock}</span>` : ''}
-          ${it.id === 'orcamentos' && draftQuotes ? `<span class="badge-alert">${draftQuotes}</span>` : ''}
         </button>
       `).join('')}
     </div>
@@ -173,9 +146,7 @@ function render() {
       case 'unidades': return renderUnidades();
       case 'fornecedores': return renderFornecedores();
       case 'pagamentos': return renderPagamentos();
-      case 'configuracoes': return renderConfiguracoes(param);
-      case 'orcamento': return renderOrcamento(param);
-      case 'orcamentos': return renderOrcamentos();
+      case 'configuracoes': return renderConfiguracoes();
       case 'conversor': return renderConversor();
       default: return renderDashboard();
     }
@@ -643,11 +614,10 @@ function renderPagamentos() {
 }
 
 /* =============================== CONFIGURAÇÕES DA CLÍNICA (LOGO) =============================== */
-function renderConfigClinica() {
+function renderConfiguracoes() {
   const settings = getSettings();
   setContent(`
-    ${topbar('Configurações', 'Identidade do portal do paciente e dados para faturamento com fornecedores')}
-    ${configTabsHtml('clinica')}
+    ${topbar('Configurações da Clínica', 'Identidade do portal do paciente e dados para faturamento com fornecedores')}
     ${popFlash()}
     <div class="grid-2">
       <div class="card">
@@ -692,7 +662,6 @@ function renderConfigClinica() {
     </div>
   `);
 
-  bindConfigTabs();
   let pendingLogoDataUrl = settings.logoDataUrl || '';
   const fileInput = document.querySelector('[name=logo]');
   fileInput.addEventListener('change', () => {
@@ -1880,7 +1849,6 @@ async function bootApp() {
     await loadAllData();
     await loadSettingsRow();
     await seedIfEmpty();
-    if (!window.__quoteTablesMissing) await seedQuoteDataIfNeeded();
   } catch (e) {
     console.error(e);
     app.innerHTML = `<div class="boot-loading">Erro ao carregar dados: ${esc(e.message)}</div>`;

@@ -16,7 +16,7 @@
   };
 
   // Cabeçalho
-  $('#topo').innerHTML = '<div class="cx topo-in"><a href="#" class="marca" aria-label="Plena, início"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/logos/plena-logo-negativo.svg"><img src="assets/logos/plena-logo-mono.svg" alt="Plena"></picture></a>'+
+  $('#topo').innerHTML = '<div class="cx topo-in"><a href="#" class="marca" aria-label="Plena, início"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/logos/plena-logo-negativo.svg"><img src="assets/logos/plena-logo-horizontal.svg" alt="Plena"></picture></a>'+
     '<nav aria-label="Principal"><ul>'+C.menu.map(function(m){return '<li><a href="'+m[1]+'">'+m[0]+'</a></li>'}).join('')+'</ul></nav>'+
     btnLista(C.botaoLista,'btn-topo')+'</div>';
 
@@ -30,7 +30,7 @@
     '<div class="bloco-damasco"><h3>'+p.conquistasTitulo+'</h3><ul class="chips">'+p.conquistas.map(function(c){return '<li>'+c+'</li>'}).join('')+'</ul></div></div></section>';
 
   html += '<section id="como-funciona" class="sec sec-alt"><div class="cx"><h2>'+j.titulo+'</h2><p class="lead">'+j.texto+'</p>'+
-    '<ol class="arvore">'+j.ciclos.map(function(c,i){return '<li class="ciclo" style="--cor:var(--fase-'+c.fase+')"><span class="no" aria-hidden="true">'+(i+1)+'</span>'+
+    '<ol class="arvore">'+j.ciclos.map(function(c,i){return '<li class="ciclo" data-fase="'+c.fase+'"><span class="no" aria-hidden="true">'+(i+1)+'</span>'+
       '<div class="card"><p class="parte">'+c.parte+' · '+c.duracao+'</p><h3>'+c.nome+'</h3><p>'+c.texto+'</p></div></li>'}).join('')+'</ol></div></section>';
 
   html += '<section id="programa" class="sec"><div class="cx"><h2>'+r.titulo+'</h2><ul class="cards cards3">'+

@@ -19,5 +19,9 @@ Para testar localmente: `python3 -m http.server` dentro da pasta.
 
 O formulário do guia "Mapa da sua nova fase" e o da lista usam o mesmo envio (campo `origem` diferencia).
 
-## Identidade visual: pendências
-Foram usados os 5 SVGs de logo recebidos. Cores **confirmadas** nos SVGs: seiva, amora, damasco, ink. As demais em `css/tokens.css` estão marcadas como PROVISÓRIAS até chegar o `tokens.json`. As fontes Fraunces e Figtree (variáveis, latin) estão em `assets/fonts/`.
+## Identidade visual
+Vem do kit `plena-kit-marca/` (cópia do guia e do `tokens.json` na raiz do repositório). Cores, espaços, raios e sombra estão em `tokens.json`; `css/tokens.css` é **gerado** dele: depois de editar o JSON, rode `python3 tools/gerar-tokens.py` dentro desta pasta. Logos em `assets/logos/`, fontes (Fraunces, Figtree) em `assets/fonts/`.
+
+Duas adaptações para manter contraste 4,5:1 no tema escuro, onde `ink` vira claro e `seiva` vira verde claro:
+- texto sobre `damasco`, `mel` e `folha` usa tinta escura própria (`--on-claro`);
+- cabeçalho e rodapé usam o logo negativo sobre fundo escuro (no rodapé escuro, fundo `surface-300` em vez de `seiva`).

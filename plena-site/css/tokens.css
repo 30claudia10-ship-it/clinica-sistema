@@ -1,62 +1,100 @@
-/* ==========================================================================
-   TOKENS DO PLENA  (único lugar com valores de cor)
-   CONFIRMADOS nos SVGs da marca: seiva, amora, damasco, ink.
-   PROVISÓRIOS (marcados): ainda não recebi o tokens.json. Substitua pelos
-   valores reais; o resto do CSS só usa estas variáveis.
-   ========================================================================== */
-@font-face{font-family:"Fraunces";src:url("../assets/fonts/fraunces-latin-wght-normal.woff2") format("woff2");font-weight:100 900;font-style:normal;font-display:swap}
-@font-face{font-family:"Figtree";src:url("../assets/fonts/figtree-latin-wght-normal.woff2") format("woff2");font-weight:300 900;font-style:normal;font-display:swap}
+/* GERADO por tools/gerar-tokens.py a partir de tokens.json. Não edite à mão. */
+@font-face{font-family:"Fraunces";src:url("../assets/fonts/Fraunces-500.woff2") format("woff2");font-weight:500;font-style:normal;font-display:swap}
+@font-face{font-family:"Fraunces";src:url("../assets/fonts/Fraunces-600.woff2") format("woff2");font-weight:600;font-style:normal;font-display:swap}
+@font-face{font-family:"Fraunces";src:url("../assets/fonts/Fraunces-500-italic.woff2") format("woff2");font-weight:500;font-style:italic;font-display:swap}
+@font-face{font-family:"Figtree";src:url("../assets/fonts/Figtree-400.woff2") format("woff2");font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:"Figtree";src:url("../assets/fonts/Figtree-500.woff2") format("woff2");font-weight:500;font-style:normal;font-display:swap}
+@font-face{font-family:"Figtree";src:url("../assets/fonts/Figtree-600.woff2") format("woff2");font-weight:600;font-style:normal;font-display:swap}
 
 :root{
   color-scheme: light;
-  /* superfícies */
-  --surface-100:#f7f0e5;   /* PROVISÓRIO areia */
-  --surface-200:#ece2d2;   /* PROVISÓRIO cards */
-  --ink:#2a2320;           /* confirmado (logo mono) */
-  --ink-suave:#54483f;     /* PROVISÓRIO texto secundário */
-  --linha:#d9ccb8;         /* PROVISÓRIO bordas */
-  /* marca */
-  --seiva:#3f5b45;         /* confirmado: ação */
+  --surface-100:#f6efe6;
+  --surface-200:#fffdf9;
+  --surface-300:#efe3d3;
+  --line:#e2d6c8;
+  --line-strong:#8c7c70;
+  --ink:#2a2320;
+  --ink-muted:#6b5e55;
+  --seiva:#3f5b45;
   --on-seiva:#ffffff;
-  --seiva-hover:#334b38;   /* PROVISÓRIO */
-  --amora:#7a2e3b;         /* confirmado: emoção */
+  --amora:#7a2e3b;
   --on-amora:#ffffff;
-  --damasco:#e8a77e;       /* confirmado: grandes blocos */
-  --on-damasco:#2a2320;
-  --mel:#d9a441;           /* PROVISÓRIO: conquistas */
-  --on-mel:#2a2320;
-  /* fases da jornada (PROVISÓRIOS) */
-  --fase-coerencia:#e6c98b;
-  --fase-enraizar:#d1a982;
-  --fase-estruturar:#b3c7a8;
-  --fase-desenvolver:#95bba0;
-  --fase-sustentar:#e8a77e;
-  --on-fase:#2a2320;
-  /* foco, forma, sombra */
-  --erro:#7a2e3b;
-  --foco:#7a2e3b;
-  --radius-m:20px;
+  --damasco:#e8a77e;
+  --mel:#d9a441;
+  --terracota:#b5573a;
+  --on-terracota:#ffffff;
+  --folha:#6e9a5b;
+  --fase-coerencia:var(--mel);
+  --fase-enraizar:var(--terracota);
+  --fase-estruturar:var(--seiva);
+  --fase-desenvolver:var(--folha);
+  --fase-sustentar:var(--amora);
+  --foco:#3f5b45;
+  --space-1:4px;
+  --space-2:8px;
+  --space-3:16px;
+  --space-4:24px;
+  --space-5:40px;
+  --space-6:64px;
+  --radius-s:8px;
+  --radius-m:16px;
+  --radius-l:28px;
   --radius-full:999px;
-  --sombra-suave:0 6px 24px rgba(42,35,32,.10);
-  --fonte-titulo:"Fraunces",Georgia,serif;
-  --fonte-texto:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --sombra-suave:0 6px 24px rgba(42, 35, 32, 0.08);
+  --fonte-titulo:"Fraunces", Georgia, serif;
+  --fonte-texto:"Figtree", system-ui, sans-serif;
 }
-/* Tema escuro automático, com opção manual via [data-tema] */
 @media (prefers-color-scheme: dark){
   :root:not([data-tema="claro"]){
     color-scheme: dark;
-    --surface-100:#1d1815; --surface-200:#2a231f; --ink:#f4ece1; --ink-suave:#cfc3b4; --linha:#443a33;
-    --seiva:#a9c9af; --on-seiva:#1d2a20; --seiva-hover:#bfdcc4;
-    --amora:#8c3a49; --on-amora:#ffffff;
-    --damasco:#e8a77e; --on-damasco:#2a2320;
-    --foco:#f0b9a0; --erro:#f0b9a0; --sombra-suave:0 6px 24px rgba(0,0,0,.4);
+  --surface-100:#1e1a18;
+  --surface-200:#2a2522;
+  --surface-300:#352e2a;
+  --line:#3e3632;
+  --line-strong:#8a7b71;
+  --ink:#f4ece3;
+  --ink-muted:#b8aaa0;
+  --seiva:#8db596;
+  --on-seiva:#1e1a18;
+  --amora:#d98a97;
+  --on-amora:#1e1a18;
+  --damasco:#e8a77e;
+  --mel:#e0b25a;
+  --terracota:#e08a6c;
+  --on-terracota:#1e1a18;
+  --folha:#9cc48a;
+  --fase-coerencia:var(--mel);
+  --fase-enraizar:var(--terracota);
+  --fase-estruturar:var(--seiva);
+  --fase-desenvolver:var(--folha);
+  --fase-sustentar:var(--amora);
+  --foco:#e8a77e;
+  --sombra-suave:0 6px 24px rgba(0, 0, 0, 0.35);
   }
 }
 :root[data-tema="escuro"]{
   color-scheme: dark;
-  --surface-100:#1d1815; --surface-200:#2a231f; --ink:#f4ece1; --ink-suave:#cfc3b4; --linha:#443a33;
-  --seiva:#a9c9af; --on-seiva:#1d2a20; --seiva-hover:#bfdcc4;
-  --amora:#8c3a49; --on-amora:#ffffff;
-  --damasco:#e8a77e; --on-damasco:#2a2320;
-  --foco:#f0b9a0; --erro:#f0b9a0; --sombra-suave:0 6px 24px rgba(0,0,0,.4);
+  --surface-100:#1e1a18;
+  --surface-200:#2a2522;
+  --surface-300:#352e2a;
+  --line:#3e3632;
+  --line-strong:#8a7b71;
+  --ink:#f4ece3;
+  --ink-muted:#b8aaa0;
+  --seiva:#8db596;
+  --on-seiva:#1e1a18;
+  --amora:#d98a97;
+  --on-amora:#1e1a18;
+  --damasco:#e8a77e;
+  --mel:#e0b25a;
+  --terracota:#e08a6c;
+  --on-terracota:#1e1a18;
+  --folha:#9cc48a;
+  --fase-coerencia:var(--mel);
+  --fase-enraizar:var(--terracota);
+  --fase-estruturar:var(--seiva);
+  --fase-desenvolver:var(--folha);
+  --fase-sustentar:var(--amora);
+  --foco:#e8a77e;
+  --sombra-suave:0 6px 24px rgba(0, 0, 0, 0.35);
 }
